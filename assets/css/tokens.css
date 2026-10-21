@@ -1,0 +1,108 @@
+/* ==========================================================================
+   Rossa Equipamentos — TOKENS DE DESIGN (fonte única)
+   --------------------------------------------------------------------------
+   Base: Manual de Identidade Visual 2026 (MIV. Rossa Equipamentos.pdf)
+     · Azul institucional    #00124F  (MIV p. 12)
+     · Dourado institucional #CC9933  (MIV p. 12)
+     · Tipografia            Asap (versão Regular como padrão — MIV p. 15)
+   Arquivos de fonte: fornecidos pela Rossa em
+     1. DOCUMENTAÇÃO/MARCA/IDENTIDADE VISUAL 2026/Tipografia Asap
+   Regras de uso (contraste verificado, WCAG 2.1):
+     · Dourado #CC9933 NÃO é usado para texto sobre fundo claro (2,57:1).
+       Serve para indicadores, filetes, seleção e destaques gráficos.
+       Sobre o azul, o dourado pode ser texto (6,81:1).
+     · Texto dourado sobre fundo claro usa --color-accent-text (5,3:1),
+       com moderação (rótulos curtos).
+     · Cores funcionais (sucesso, atenção, erro) não se confundem com as
+       cores institucionais: atenção é laranja, não dourado.
+   Todas as telas (Central, instrução completa, futura intranet) devem
+   consumir estes tokens em vez de valores de cor soltos.
+   ========================================================================== */
+
+@font-face { font-family: "Asap"; src: url("../fonts/asap/Asap-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Asap"; src: url("../fonts/asap/Asap-Italic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Asap"; src: url("../fonts/asap/Asap-Medium.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Asap"; src: url("../fonts/asap/Asap-SemiBold.ttf") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Asap"; src: url("../fonts/asap/Asap-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+
+:root {
+  /* ---- marca (valores oficiais — não alterar) ---- */
+  --rossa-azul: #00124F;
+  --rossa-dourado: #CC9933;
+
+  /* ---- cor primária: azul ---- */
+  --color-primary: var(--rossa-azul);
+  --color-primary-hover: #0B2170;
+  --color-primary-active: #000C36;
+  --color-primary-soft: #EDF0F8;      /* fundos de ícones, chips */
+  --color-primary-softer: #F5F7FB;
+  --color-on-primary: #FFFFFF;
+
+  /* ---- cor de destaque: dourado (com moderação) ---- */
+  --color-accent: var(--rossa-dourado);  /* indicadores, filetes, seleção */
+  --color-accent-text: #8C6420;          /* texto dourado sobre fundo claro */
+  --color-accent-soft: #FBF5E8;          /* realce suave (etapa atual) */
+  --color-accent-line: #E9D5AA;
+
+  /* ---- superfícies ---- */
+  --surface-page: #F6F7F9;
+  --surface: #FFFFFF;
+  --surface-muted: #F1F3F6;
+  --surface-sunken: #ECEEF2;
+  --surface-inverse: var(--rossa-azul);
+
+  /* ---- textos ---- */
+  --text: #0D1530;
+  --text-2: #3A4256;
+  --text-muted: #5F6677;       /* informação secundária (5,7:1) */
+  --text-faint: #8A91A2;       /* apenas placeholders e decoração (3,2:1) */
+  --text-on-inverse: #FFFFFF;
+
+  /* ---- bordas ---- */
+  --border: #E4E7ED;
+  --border-strong: #D3D8E1;
+
+  /* ---- estados interativos ---- */
+  --state-hover: #F1F3F7;
+  --state-selected: var(--color-primary);
+  --focus-ring: 0 0 0 3px rgba(0, 18, 79, .28);
+  --focus-outline: 2px solid var(--rossa-azul);
+
+  /* ---- cores funcionais ---- */
+  --success: #1E6B47;   --success-soft: #EAF5EF;  --success-line: #B9DCC8;
+  --warning: #B54708;   --warning-soft: #FFF6ED;  --warning-line: #F5CFA8;
+  --danger:  #B42318;   --danger-soft:  #FEF1F0;  --danger-line:  #F2BDB7;
+  --info:    var(--rossa-azul); --info-soft: var(--color-primary-soft); --info-line: #CDD4E8;
+
+  /* ---- tipografia ---- */
+  --font-sans: "Asap", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+  --fs-xs: 12px; --fs-sm: 13.5px; --fs-md: 15px; --fs-lg: 17px; --fs-xl: 21px; --fs-2xl: 26px; --fs-3xl: 34px; --fs-4xl: 44px;
+  --lh-tight: 1.2; --lh-base: 1.55;
+  --tracking-label: .1em;
+
+  /* ---- espaçamentos (escala de 4px) ---- */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-5: 20px;
+  --space-6: 24px; --space-8: 32px; --space-10: 40px; --space-12: 48px; --space-16: 64px;
+
+  /* ---- raios (cantos discretos, linguagem industrial) ---- */
+  --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-pill: 999px;
+
+  /* ---- elevação ---- */
+  --shadow-1: 0 1px 2px rgba(0, 18, 79, .05);
+  --shadow-2: 0 1px 2px rgba(0, 18, 79, .04), 0 8px 24px rgba(0, 18, 79, .07);
+  --shadow-3: 0 2px 6px rgba(0, 18, 79, .07), 0 20px 48px rgba(0, 18, 79, .12);
+
+  /* ---- movimento ---- */
+  --ease: cubic-bezier(.2, .7, .2, 1);
+  --dur-fast: .15s; --dur: .25s;
+
+  /* ---- marca: dimensões de uso do logotipo ----
+     Área de segurança = altura do "R" (MIV p. 13) ≈ 53% da altura do logo horizontal.
+     Redução mínima horizontal = 34,39 mm ≈ 130 px de largura (MIV p. 13). */
+  --logo-h-header: 30px;
+  --logo-h-hero: 48px;
+  --logo-safe-ratio: .53;
+  --logo-min-width: 130px;
+}

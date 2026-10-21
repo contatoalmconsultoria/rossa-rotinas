@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://igpwnzpalqpyoypnhoww.supabase.co; base-uri 'none'; form-action 'self'; object-src 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="referrer" content="no-referrer">
+  <title>Rotinas Administrativas · Rossa</title>
+  <link rel="icon" type="image/png" href="assets/img/marca/rossa-vertical.png">
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/painel.css">
+</head>
+<body>
+  <a class="skip" href="#conteudo">Ir para o conteúdo</a>
+
+  <!-- Tela de acesso -->
+  <main id="tela-acesso" class="acesso" hidden>
+    <form id="form-acesso" class="acesso-card" autocomplete="off">
+      <img class="acesso-logo" src="assets/img/marca/rossa-horizontal.png" alt="Rossa Equipamentos">
+      <h1>Rotinas Administrativas</h1>
+      <p class="muted">Informe o código de acesso fornecido pela gestão.</p>
+      <label class="campo">
+        <span>Código de acesso</span>
+        <input id="acesso-codigo" type="password" required minlength="8" maxlength="128" autocomplete="current-password">
+      </label>
+      <label class="campo">
+        <span>Nome deste computador <em>(opcional)</em></span>
+        <input id="acesso-dispositivo" type="text" maxlength="60" placeholder="Ex.: PC administrativo">
+      </label>
+      <label class="check"><input id="acesso-lembrar" type="checkbox" checked> Manter conectado neste computador</label>
+      <button class="btn btn-primario btn-largo" type="submit">Entrar</button>
+      <p id="acesso-erro" class="erro-msg" role="alert" hidden></p>
+    </form>
+  </main>
+
+  <!-- Aplicação -->
+  <div id="tela-app" hidden>
+    <header class="topo">
+      <div class="topo-marca">
+        <img class="topo-logo" src="assets/img/marca/rossa-horizontal-branca.png" alt="Rossa Equipamentos">
+        <span class="topo-titulo">Rotinas Administrativas</span>
+      </div>
+      <nav class="topo-nav" aria-label="Seções">
+        <a href="#/hoje" data-rota="hoje">Hoje</a>
+        <a href="#/pendencias" data-rota="pendencias">Pendências <span id="nav-pend" class="nav-badge" hidden></span></a>
+        <a href="#/historico" data-rota="historico">Histórico</a>
+        <a href="#/indicadores" data-rota="indicadores">Indicadores</a>
+        <a href="#/admin" data-rota="admin" data-gestao hidden>Administração</a>
+      </nav>
+      <div class="topo-dir">
+        <span id="conexao" class="conexao ok" title="Situação da conexão com o banco de dados">Conectado</span>
+        <span id="perfil" class="perfil"></span>
+        <button id="btn-sair" class="btn-link-claro" type="button">Sair</button>
+      </div>
+    </header>
+    <main id="conteudo" class="conteudo" tabindex="-1"></main>
+  </div>
+
+  <div id="avisos" class="avisos" aria-live="polite"></div>
+  <dialog id="modal" class="modal"></dialog>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/telas-hoje.js"></script>
+  <script src="assets/js/telas-gestao.js"></script>
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
