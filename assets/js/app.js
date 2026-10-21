@@ -38,10 +38,14 @@
         a.classList.toggle('ativo', a.dataset.rota === destino)
         if (a.dataset.rota === destino) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current')
       })
-      const raiz = $('#conteudo')
+      // Cada navegação recebe uma área nova: se uma tela anterior ainda estiver carregando,
+      // ela termina desenhando numa área já descartada, sem sobrescrever a tela atual.
+      const conteudo = $('#conteudo')
+      const raiz = document.createElement('div')
+      conteudo.replaceChildren(raiz)
       Telas.Tarefas.abertas.clear()
       ROTAS[destino](raiz, param)
-      raiz.focus({ preventScroll: true })
+      conteudo.focus({ preventScroll: true })
       App.atualizarContador()
     },
 
