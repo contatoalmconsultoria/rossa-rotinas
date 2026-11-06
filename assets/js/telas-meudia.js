@@ -7,6 +7,9 @@
   const FINAL = ['concluida', 'nao_realizada', 'nao_aplicavel']
   // "pendente" (pulada com justificativa) libera a fila no dia em que foi pulada e volta no dia seguinte
   const resolvidaHoje = (e, hoje) => FINAL.includes(e.status) || (e.status === 'pendente' && dataDoTs(e.atualizado_em) === hoje)
+  // Só entra o que vence hoje ou nos próximos 2 dias úteis; prazos de dias anteriores ficam fora do "Meu dia"
+  // (a gestão continua vendo esses atrasos na tela "Hoje" e no histórico)
+  const vencida = (e, hoje) => e.data_prevista < hoje
   const naFila = (e, limite) => e.frequencia === 'diaria' || e.data_prevista <= limite
   const ORDEM_CAT = { diaria: 0, semanal: 1, mensal: 2, periodica: 3 }
   const rotuloFreq = { diaria: 'Rotina diária', semanal: 'Rotina semanal', mensal: 'Rotina mensal', periodica: 'Rotina periódica', sob_demanda: 'Sob demanda' }
@@ -16,8 +19,9 @@
     const idx = new Map(d.execucoes.map((e, i) => [e.id, i]))
     const ordenar = (a, b) => (ORDEM_CAT[a.categoria] ?? 9) - (ORDEM_CAT[b.categoria] ?? 9) ||
       (a.categoria === 'diaria' ? 0 : (a.data_prevista || '').localeCompare(b.data_prevista || '')) || idx.get(a.id) - idx.get(b.id)
-    const fila = d.execucoes.filter(e => naFila(e, d.limite_fila)).sort(ordenar)
-    const adiantar = d.execucoes.filter(e => !naFila(e, d.limite_fila)).sort(ordenar)
+    const doDia = d.execucoes.filter(e => !vencida(e, d.hoje))
+    const fila = doDia.filter(e => naFila(e, d.limite_fila)).sort(ordenar)
+    const adiantar = doDia.filter(e => !naFila(e, d.limite_fila)).sort(ordenar)
     return { fila, adiantar }
   }
 
@@ -46,7 +50,7 @@
       const atual = atualIdx >= 0 ? fila[atualIdx] : null
       const nome = API.usuario?.nome || ''
       const gestao = d.gestao_nome || 'gestão'
-      const atrasadas = fila.filter(e => !resolvidaHoje(e, hoje) && e.atrasada && e.frequencia !== 'diaria').length
+      const atrasadas = fila.filter(e => !resolvidaHoje(e, hoje) && e.atrasada).length
       const respostas = (d.duvidas || []).filter(x => x.resposta && !x.lida && API.usuario?.perfil !== 'gestao')
 
       let fala
@@ -63,7 +67,7 @@
               <div class="rotulo-dia">${fmtDataLonga(hoje)}</div>
               <h1>${saudacao()}${nome ? `, ${nome}` : ''}!</h1>
               <p>${fala}</p>
-              ${atrasadas ? html`<p class="alerta-txt">Atenção: ${atrasadas} ${atrasadas > 1 ? 'rotinas estão' : 'rotina está'} com prazo vencido.</p>` : ''}
+              ${atrasadas ? html`<p class="alerta-txt">Atenção: ${atrasadas} ${atrasadas > 1 ? 'atividades já passaram' : 'atividade já passou'} do horário previsto.</p>` : ''}
             </div></div>
             ${d.recado ? html`<div class="fala"><div class="avatar adm">${gestao[0]}</div><div class="balao recado">
               <div class="quem">Recado da ${gestao}</div><p class="pre">${d.recado.texto}</p></div></div>` : ''}
@@ -78,7 +82,7 @@
 
           ${atual ? html`
             <section class="atual">
-              <span class="etq ${atual.atrasada && atual.frequencia !== 'diaria' ? 'urg' : ''}">${rotuloFreq[atual.frequencia] || 'Rotina'} ${atual.codigo}${atual.atrasada && atual.frequencia !== 'diaria' ? ' · ATRASADA' : ''}${atual.status === 'pendente' ? ' · voltou da véspera' : ''} · ${atualIdx + 1} de ${total}</span>
+              <span class="etq ${atual.atrasada ? 'urg' : ''}">${rotuloFreq[atual.frequencia] || 'Rotina'} ${atual.codigo}${atual.atrasada ? ' · passou do horário' : ''}${atual.status === 'pendente' ? ' · voltou da véspera' : ''} · ${atualIdx + 1} de ${total}</span>
               <h2>${atual.nome}</h2>
               <div class="meta">${MeuDia.meta(atual)}</div>
               ${atual.descricao ? html`<div class="passos">${atual.descricao}</div>` : ''}
@@ -103,7 +107,7 @@
                   : i === atualIdx ? 'Fazendo agora' : 'Libera depois da anterior'
               return html`<div class="item ${!ok && i !== atualIdx ? 'bloq' : ''}">${ic}<div class="tx">
                 <b><span class="cod">${e.codigo}</span> ${e.nome}</b>
-                <span>${rotuloFreq[e.frequencia] || ''}${e.frequencia !== 'diaria' ? ' · prazo ' + fmtDataCurta(e.data_prevista) : ''}${!ok && e.atrasada && e.frequencia !== 'diaria' ? html` · <b class="verm">atrasada</b>` : ''} · ${sub}</span>
+                <span>${rotuloFreq[e.frequencia] || ''}${e.frequencia !== 'diaria' ? ' · prazo ' + fmtDataCurta(e.data_prevista) : ''}${!ok && e.atrasada ? html` · <b class="verm">passou do horário</b>` : ''} · ${sub}</span>
                 ${ok && e.status !== 'concluida' && e.justificativa ? html`<span class="just">${e.justificativa}</span>` : ''}</div></div>`
             })}</section>` : ''}
 
@@ -157,10 +161,10 @@
 
     pular (e) {
       const motivos = MeuDia.d.motivos || ['Outro motivo']
-      const volta = e.frequencia !== 'diaria'
+      const volta = e.frequencia !== 'diaria' && e.data_prevista > MeuDia.d.hoje
       abrirModal({
         titulo: 'Pular esta atividade?',
-        subtitulo: `Para seguir sem fazer “${e.nome}”, conte o motivo. A ${MeuDia.d.gestao_nome || 'gestão'} vai ver a sua justificativa.${volta ? ' Ela volta para a sua fila amanhã.' : ''}`,
+        subtitulo: `Para seguir sem fazer “${e.nome}”, conte o motivo. A ${MeuDia.d.gestao_nome || 'gestão'} vai ver a sua justificativa.${volta ? ' Como o prazo é ' + fmtDataCurta(e.data_prevista) + ', ela volta para a sua fila amanhã.' : ''}`,
         corpo: html`<label class="campo"><span>Motivo</span><select name="motivo" required><option value="">Selecione…</option>${motivos.map(m => html`<option>${m}</option>`)}</select></label>
           <label class="campo"><span>Explique em poucas palavras</span><textarea name="justificativa" required minlength="5" maxlength="2000" placeholder="Ex.: o fornecedor ainda não mandou o XML da nota"></textarea></label>`,
         botoes: [{ rotulo: 'Pular com justificativa', tipo: 'perigo', acao: async form => {
