@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://igpwnzpalqpyoypnhoww.supabase.co; base-uri 'none'; form-action 'self'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src https://igpwnzpalqpyoypnhoww.supabase.co; frame-src 'none'; base-uri 'none'; form-action 'self'; object-src 'none'">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
   <meta name="referrer" content="no-referrer">
@@ -16,21 +16,39 @@
 
   <!-- Tela de acesso -->
   <main id="tela-acesso" class="acesso" hidden>
-    <form id="form-acesso" class="acesso-card" autocomplete="off">
+    <form id="form-acesso" class="acesso-card">
       <img class="acesso-logo" src="assets/img/marca/rossa-horizontal.png" alt="Rossa Equipamentos">
       <h1>Rotinas Administrativas</h1>
-      <p class="muted">Informe o código de acesso fornecido pela gestão.</p>
+      <p class="muted">Entre com o seu e-mail da Rossa e a sua senha.</p>
       <label class="campo">
-        <span>Código de acesso</span>
-        <input id="acesso-codigo" type="password" required minlength="8" maxlength="128" autocomplete="current-password">
+        <span>E-mail</span>
+        <input id="acesso-email" type="email" required maxlength="120" autocomplete="username" placeholder="nome@rossa.ind.br">
       </label>
       <label class="campo">
-        <span>Nome deste computador <em>(opcional)</em></span>
-        <input id="acesso-dispositivo" type="text" maxlength="60" placeholder="Ex.: PC administrativo">
+        <span>Senha</span>
+        <input id="acesso-senha" type="password" required minlength="6" maxlength="128" autocomplete="current-password">
       </label>
       <label class="check"><input id="acesso-lembrar" type="checkbox" checked> Manter conectado neste computador</label>
       <button class="btn btn-primario btn-largo" type="submit">Entrar</button>
+      <button id="btn-esqueci" class="btn-link" type="button">Esqueci minha senha</button>
       <p id="acesso-erro" class="erro-msg" role="alert" hidden></p>
+      <p id="acesso-ok" class="ok-msg" role="status" hidden></p>
+    </form>
+
+    <form id="form-senha" class="acesso-card" hidden>
+      <img class="acesso-logo" src="assets/img/marca/rossa-horizontal.png" alt="Rossa Equipamentos">
+      <h1 id="senha-titulo">Defina sua senha</h1>
+      <p class="muted">Use pelo menos 10 caracteres, com letras e números. Não reaproveite senhas de outros sites.</p>
+      <label class="campo">
+        <span>Nova senha</span>
+        <input id="senha-nova" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
+      </label>
+      <label class="campo">
+        <span>Repita a nova senha</span>
+        <input id="senha-repetir" type="password" required minlength="10" maxlength="128" autocomplete="new-password">
+      </label>
+      <button class="btn btn-primario btn-largo" type="submit">Salvar senha e entrar</button>
+      <p id="senha-erro" class="erro-msg" role="alert" hidden></p>
     </form>
   </main>
 

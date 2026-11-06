@@ -65,6 +65,8 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--c
 .check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--text-2); cursor: pointer; }
 .check input { width: 18px; height: 18px; accent-color: var(--color-primary); }
 .erro-msg { color: var(--danger); font-size: var(--fs-sm); background: var(--danger-soft); border: 1px solid var(--danger-line); padding: 8px 10px; border-radius: var(--radius-md); }
+.ok-msg { color: var(--success, #1a7f37); font-size: var(--fs-sm); background: var(--success-soft, #e9f7ee); border: 1px solid var(--success-line, #b7e1c4); padding: 8px 10px; border-radius: var(--radius-md); }
+.acesso-card #btn-esqueci { align-self: center; }
 
 /* ---------- tela de acesso ---------- */
 .acesso { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;

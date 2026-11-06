@@ -164,7 +164,7 @@
       Admin.desenhar()
     },
     desenhar () {
-      const abas = [['tarefas', 'Tarefas'], ['pops', 'Procedimentos (POPs)'], ['pessoas', 'Áreas e responsáveis'], ['calendario', 'Calendário e feriados'], ['acesso', 'Acesso e sessões']]
+      const abas = [['tarefas', 'Tarefas'], ['pops', 'Procedimentos (POPs)'], ['pessoas', 'Áreas e responsáveis'], ['calendario', 'Calendário e feriados'], ['acesso', 'Usuários']]
       montar(Admin.raiz, html`
         <div class="pag-cab"><div><div class="rotulo">Gestão</div><h1>Administração</h1></div></div>
         <div class="abas" role="tablist">${abas.map(([k, t]) => html`<button role="tab" data-aba="${k}" aria-selected="${Admin.aba === k}">${t}</button>`)}</div>
@@ -334,37 +334,27 @@
       alvo.querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => form(Admin.c.excecoes.find(x => x.data === b.dataset.editar))))
     },
 
-    // ---------- acesso ----------
-    acesso (alvo) {
-      const c = Admin.c
+    // ---------- usuários ----------
+    async acesso (alvo) {
+      montar(alvo, html`<div class="carregando">Carregando usuários…</div>`)
+      let lista
+      try { lista = await API.chamar('usuarios') } catch (err) { return montar(alvo, html`<div class="vazio">${err.message}</div>`) }
+      const eu = API.usuario?.email
       montar(alvo, html`
-        <section class="cartao"><h3>Códigos de acesso</h3>
-          <p class="muted small" style="margin-bottom:10px">Há um código para a <strong>Operação</strong> (auxiliar administrativa: usa o painel e registra as rotinas) e outro para a <strong>Gestão</strong> (também administra cadastros e acessos).
-            Os códigos são guardados apenas como hash; nem a gestão consegue consultá-los. Ao trocar um código, as sessões abertas daquele perfil são encerradas.</p>
-          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-codigo="operacao">Trocar código da Operação</button><button class="btn" data-codigo="gestao">Trocar código da Gestão</button></div>
-          <div class="tabela-wrap" style="margin-top:12px"><table><thead><tr><th>Perfil</th><th>Descrição</th><th>Criado em</th><th>Situação</th></tr></thead>
-            <tbody>${c.credenciais.map(k => html`<tr class="${k.ativo ? '' : 'inativa'}"><td>${k.perfil === 'gestao' ? 'Gestão' : 'Operação'}</td><td>${k.descricao}</td><td>${fmtDataHora(k.criado_em)}</td><td>${k.ativo ? 'Ativo' : 'Desativado ' + fmtDataHora(k.desativado_em)}</td></tr>`)}</tbody></table></div>
-        </section>
-        <section class="cartao"><h3>Computadores conectados</h3>
-          <div class="tabela-wrap"><table><thead><tr><th>Perfil</th><th>Computador</th><th>Entrou em</th><th>Último uso</th><th>Expira em</th><th></th></tr></thead>
-            <tbody>${c.sessoes.map(s => html`<tr><td>${s.perfil === 'gestao' ? 'Gestão' : 'Operação'}</td><td>${s.dispositivo || '—'}<br><span class="muted small">${s.ip || ''}</span></td><td>${fmtDataHora(s.criada_em)}</td><td>${fmtDataHora(s.ultimo_uso_em)}</td><td>${fmtDataHora(s.expira_em)}</td>
-              <td class="num"><button class="btn btn-pequeno btn-perigo" data-revogar="${s.id}">Desconectar</button></td></tr>`)}</tbody></table></div></section>`)
-      alvo.querySelectorAll('[data-codigo]').forEach(b => b.addEventListener('click', () => abrirModal({
-        titulo: 'Trocar código — ' + (b.dataset.codigo === 'gestao' ? 'Gestão' : 'Operação'),
-        corpo: html`<label class="campo"><span>Novo código (mínimo 10 caracteres, com letras e números)</span><input type="password" name="novo_codigo" required minlength="10" maxlength="128" autocomplete="new-password"></label>
-          <label class="campo"><span>Repita o novo código</span><input type="password" name="repetir" required minlength="10" maxlength="128" autocomplete="new-password"></label>
-          <label class="check"><input type="checkbox" name="revogar" value="1" checked> Desconectar os computadores que usam o código atual</label>`,
-        botoes: [{ rotulo: 'Trocar código', acao: async f => {
-          const v = valores(f)
-          if (v.novo_codigo !== v.repetir) throw new Error('Os códigos digitados não conferem.')
-          const r = await API.chamar('alterar_codigo', { perfil: b.dataset.codigo, novo_codigo: v.novo_codigo, revogar_sessoes: !!v.revogar })
-          avisar(`Código alterado. ${r.sessoes_revogadas} sessão(ões) encerrada(s).`)
-          return true
-        } }],
-      }).then(r => { if (r) Admin.carregar() })))
-      alvo.querySelectorAll('[data-revogar]').forEach(b => b.addEventListener('click', async () => {
-        if (!await confirmar('Desconectar computador?', 'Ele precisará informar o código de acesso novamente.', 'Desconectar')) return
-        try { await API.chamar('revogar_sessao', { id: b.dataset.revogar }); avisar('Computador desconectado.'); Admin.carregar() } catch (err) { avisar(err.message, 'erro') }
+        <section class="cartao"><h3>Quem pode entrar no painel</h3>
+          <p class="muted small" style="margin-bottom:10px">Cada pessoa entra com o próprio e-mail e senha. A <strong>Gestão</strong> acompanha e administra os cadastros; a <strong>Operação</strong> executa e registra as rotinas.
+            As senhas ficam só com cada pessoa — ninguém consegue consultá-las. Quem esquecer a senha usa "Esqueci minha senha" na tela de entrada.</p>
+          <div class="tabela-wrap"><table><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Login</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead>
+            <tbody>${lista.map(u => html`<tr class="${u.ativo ? '' : 'inativa'}"><td>${u.nome}<br><span class="muted small">${u.responsavel || ''}</span></td><td>${u.email}</td>
+              <td>${u.perfil === 'gestao' ? 'Gestão' : 'Operação'}</td><td>${u.login_criado ? 'Criado' : html`<span class="muted">aguardando convite</span>`}</td>
+              <td>${u.ultimo_acesso_em ? fmtDataHora(u.ultimo_acesso_em) : '—'}</td><td>${u.ativo ? 'Ativo' : 'Bloqueado'}</td>
+              <td class="num">${u.email === eu ? html`<span class="muted small">você</span>` : html`<button class="btn btn-pequeno ${u.ativo ? 'btn-perigo' : ''}" data-alternar="${u.id}">${u.ativo ? 'Bloquear' : 'Liberar'}</button>`}</td></tr>`)}</tbody></table></div>
+          <p class="muted small" style="margin-top:10px">Para incluir uma pessoa nova, fale com a ALM Consultoria: o convite é enviado por e-mail e ela mesma cria a senha.</p>
+        </section>`)
+      alvo.querySelectorAll('[data-alternar]').forEach(b => b.addEventListener('click', async () => {
+        const u = lista.find(x => x.id === Number(b.dataset.alternar))
+        if (u.ativo && !await confirmar(`Bloquear ${u.nome}?`, 'Ela não conseguirá mais usar o painel até ser liberada de novo. O histórico é mantido.', 'Bloquear')) return
+        try { await API.chamar('salvar_usuario', { id: u.id, ativo: !u.ativo }); avisar(u.ativo ? 'Acesso bloqueado.' : 'Acesso liberado.'); Admin.acesso(alvo) } catch (err) { avisar(err.message, 'erro') }
       }))
     },
   }
