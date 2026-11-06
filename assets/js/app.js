@@ -75,8 +75,9 @@
 
     async atualizarContador () {
       try {
-        const l = await API.chamar('pendencias', { status: 'aberta' })
-        const b = $('#nav-pend'); b.hidden = !l.length; b.textContent = l.length
+        const [l, av] = await Promise.all([API.chamar('pendencias', { status: 'aberta' }), API.chamar('avulsas', { status: 'aberta' })])
+        const n = l.length + av.length
+        const b = $('#nav-pend'); b.hidden = !n; b.textContent = n
         if (API.usuario?.perfil === 'gestao') {
           const d = (await API.chamar('duvidas')).filter(x => !x.resposta).length
           const bd = $('#nav-duv'); bd.hidden = !d; bd.textContent = d

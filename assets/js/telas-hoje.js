@@ -407,23 +407,51 @@
     },
     async carregar () {
       try {
-        Pendencias.lista = await API.chamar('pendencias', { status: Pendencias.filtro })
-        Pendencias.desenhar()
+        const stAv = { aberta: 'aberta', resolvida: 'concluida', todas: 'todas' }[Pendencias.filtro]
+        ;[Pendencias.lista, Pendencias.avulsas] = await Promise.all([
+          API.chamar('pendencias', { status: Pendencias.filtro }),
+          API.chamar('avulsas', { status: stAv }),
+        ])
+        if (Pendencias.raiz.isConnected) Pendencias.desenhar()
       } catch (err) { montar(Pendencias.raiz, html`<div class="vazio">${err.message}</div>`) }
     },
     desenhar () {
-      const l = Pendencias.lista
+      const l = Pendencias.lista, av = Pendencias.avulsas || []
+      const gestao = API.usuario?.perfil === 'gestao'
       montar(Pendencias.raiz, html`
         <div class="pag-cab"><div><div class="rotulo">Impedimentos</div><h1>Pendências</h1></div>
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <div class="chips" role="group" aria-label="Filtrar pendências">
             ${[['aberta', 'Abertas'], ['resolvida', 'Resolvidas'], ['todas', 'Todas']].map(([v, t]) => html`<button class="chip" data-f="${v}" aria-pressed="${Pendencias.filtro === v}">${t}</button>`)}
-          </div></div>
+          </div>
+          ${gestao ? html`<button class="btn btn-primario" data-nova-av>+ Nova pendência</button>` : ''}</div></div>
+        ${av.length ? html`<h2 class="sub-sec">Criadas pela gestão</h2>${av.map(a => html`
+          <article class="cartao pend-card">
+            <div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <strong>${a.titulo}</strong>
+                ${a.urgente ? html`<span class="pill" data-st="nao_realizada">Urgente</span>` : ''}
+                <span class="pill ${a.status === 'aberta' ? '' : 'pill-neutra'}" data-st="${a.status === 'aberta' ? 'pendente' : 'concluida'}">${a.status === 'aberta' ? 'Aberta' : 'Concluída'}</span>
+              </div>
+              <dl>
+                <div><dt>Aparece para a assistente desde</dt><dd>${fmtData(a.inicio)}</dd></div>
+                <div><dt>Prazo</dt><dd class="${a.atrasada ? 'vencido' : ''}">${a.prazo ? fmtData(a.prazo) : '—'}${a.atrasada ? ' (vencido)' : ''}</dd></div>
+                <div><dt>Instruções</dt><dd>${a.instrucoes || '—'}</dd></div>
+                ${a.pulos ? html`<div><dt>Pulada ${a.pulos}× — última</dt><dd>${fmtData(a.pulada_em)}: ${a.pulo_motivo} — ${a.pulo_justificativa}</dd></div>` : ''}
+                ${a.status === 'concluida' ? html`<div><dt>Concluída</dt><dd>${fmtDataHora(a.concluida_em)}${a.concluida_por ? ' por ' + a.concluida_por : ''}</dd></div><div><dt>Observação</dt><dd>${a.observacao || '—'}</dd></div>` : ''}
+              </dl>
+            </div>
+            <div class="acoes">
+              ${gestao && a.status === 'aberta' ? html`<button class="btn" data-editar-av="${a.id}">Editar</button>
+                <button class="btn btn-perigo" data-excluir-av="${a.id}">Excluir</button>` : ''}
+            </div>
+          </article>`)}${l.length ? html`<h2 class="sub-sec">Das rotinas</h2>` : ''}` : ''}
         ${l.length ? l.map(p => html`
           <article class="cartao pend-card">
             <div>
               <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
                 <strong>${p.tarefa}</strong><span class="muted small">${p.codigo}</span>
-                <span class="pill ${p.status === 'aberta' ? '' : 'pill-neutra'}" data-st="${p.status === 'aberta' ? 'pendente' : 'concluida'}">${p.status === 'aberta' ? (p.dias_aberta ? `Aberta há ${p.dias_aberta} dia(s)` : 'Aberta hoje') : 'Resolvida'}</span>
+                <span class="pill ${p.status === 'aberta' ? '' : 'pill-neutra'}" data-st="${p.status === 'aberta' ? 'pendente' : 'concluida'}">${p.status === 'aberta' ? (p.dias_aberta ? `Aberta há ${p.dias_aberta} dia(s)` : 'Aberta hoje') : p.status === 'excluida' ? 'Excluída' : 'Resolvida'}</span>
               </div>
               <dl>
                 <div><dt>Data de origem</dt><dd>${fmtData(p.data_origem)}</dd></div>
@@ -432,20 +460,51 @@
                 <div><dt>Responsável pela resolução</dt><dd>${p.responsavel_resolucao || '—'}</dd></div>
                 <div><dt>Prazo para resolução</dt><dd class="${p.prazo_vencido ? 'vencido' : ''}">${p.prazo_resolucao ? fmtData(p.prazo_resolucao) : '—'}${p.prazo_vencido ? ' (vencido)' : ''}</dd></div>
                 <div><dt>Situação atual da tarefa</dt><dd><span class="pill" data-st="${p.execucao_status}">${STATUS[p.execucao_status]}</span></dd></div>
-                ${p.status === 'resolvida' ? html`<div><dt>Resolvida em</dt><dd>${fmtDataHora(p.resolvida_em)}</dd></div><div><dt>Resolução</dt><dd>${p.resolucao}</dd></div>` : ''}
+                ${p.status !== 'aberta' ? html`<div><dt>${p.status === 'excluida' ? 'Excluída em' : 'Resolvida em'}</dt><dd>${fmtDataHora(p.resolvida_em)}</dd></div><div><dt>Resolução</dt><dd>${p.resolucao}</dd></div>` : ''}
               </dl>
             </div>
             <div class="acoes">
               ${p.status === 'aberta' ? html`<button class="btn btn-primario" data-resolver="${p.id}">Resolver</button>
-                <button class="btn" data-editar="${p.id}">Acompanhamento</button>` : ''}
+                <button class="btn" data-editar="${p.id}">Acompanhamento</button>
+                ${gestao ? html`<button class="btn btn-perigo" data-excluir="${p.id}">Excluir</button>` : ''}` : ''}
               <button class="btn" data-ver="${p.execucao_id}">Histórico</button>
             </div>
-          </article>`) : html`<div class="vazio">${Pendencias.filtro === 'aberta' ? 'Nenhuma pendência aberta. 👍' : 'Nenhuma pendência neste filtro.'}</div>`}`)
+          </article>`) : av.length ? '' : html`<div class="vazio">${Pendencias.filtro === 'aberta' ? 'Nenhuma pendência aberta. 👍' : 'Nenhuma pendência neste filtro.'}</div>`}`)
       const raiz = Pendencias.raiz
       raiz.querySelectorAll('[data-f]').forEach(b => b.addEventListener('click', () => { Pendencias.filtro = b.dataset.f; Pendencias.carregar() }))
       raiz.querySelectorAll('[data-resolver]').forEach(b => b.addEventListener('click', () => Pendencias.resolver(l.find(p => p.id === Number(b.dataset.resolver)))))
       raiz.querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => Pendencias.editar(l.find(p => p.id === Number(b.dataset.editar)))))
       raiz.querySelectorAll('[data-ver]').forEach(b => b.addEventListener('click', () => verHistoricoExecucao(Number(b.dataset.ver))))
+      raiz.querySelector('[data-nova-av]')?.addEventListener('click', () => Pendencias.formAvulsa(null))
+      raiz.querySelectorAll('[data-editar-av]').forEach(b => b.addEventListener('click', () => Pendencias.formAvulsa(av.find(a => a.id === Number(b.dataset.editarAv)))))
+      raiz.querySelectorAll('[data-excluir-av]').forEach(b => b.addEventListener('click', async () => {
+        const a = av.find(x => x.id === Number(b.dataset.excluirAv))
+        if (!await confirmar('Excluir pendência?', `“${a.titulo}” sai da fila da assistente e das listas. O registro fica guardado no histórico.`, 'Excluir')) return
+        try { await API.chamar('excluir_avulsa', { id: a.id }); avisar('Pendência excluída.'); Pendencias.carregar(); App.atualizarContador() } catch (err) { avisar(err.message, 'erro') }
+      }))
+      raiz.querySelectorAll('[data-excluir]').forEach(b => b.addEventListener('click', async () => {
+        const p = l.find(x => x.id === Number(b.dataset.excluir))
+        if (!await confirmar('Excluir pendência?', `A pendência de “${p.tarefa}” (${fmtData(p.data_origem)}) sai das listas e a atividade fica como dispensada pela gestão. O registro fica guardado no histórico.`, 'Excluir')) return
+        try { await API.chamar('excluir_pendencia', { id: p.id }); avisar('Pendência excluída.'); Pendencias.carregar(); App.atualizarContador() } catch (err) { avisar(err.message, 'erro') }
+      }))
+    },
+    formAvulsa (a) {
+      abrirModal({
+        titulo: a ? 'Editar pendência' : 'Nova pendência',
+        subtitulo: 'Uma tarefa pontual para a assistente. Entra no “Meu dia” a partir da data de início e fica lá até ser concluída.',
+        corpo: html`<div class="form-grade">
+            <label class="campo inteira"><span>O que precisa ser feito</span><input type="text" name="titulo" required maxlength="200" value="${a?.titulo || ''}" placeholder="Ex.: Ligar para o contador e pedir a guia do DAS"></label>
+            <label class="campo inteira"><span>Instruções <em>(opcional)</em></span><textarea name="instrucoes" maxlength="4000" rows="4" placeholder="Passo a passo, contatos, onde encontrar os documentos…">${a?.instrucoes || ''}</textarea></label>
+            <label class="campo"><span>Aparece a partir de</span><input type="date" name="inicio" required value="${a?.inicio || dataDoTs(new Date())}"></label>
+            <label class="campo"><span>Prazo <em>(opcional)</em></span><input type="date" name="prazo" value="${a?.prazo || ''}"></label>
+            <label class="check inteira"><input type="checkbox" name="urgente" value="1" ${a?.urgente ? 'checked' : ''}> Urgente (entra antes das rotinas na fila da assistente)</label>
+          </div>`,
+        botoes: [{ rotulo: a ? 'Salvar' : 'Criar pendência', acao: async form => {
+          const v = valores(form)
+          await API.chamar('salvar_avulsa', { id: a?.id ?? null, titulo: v.titulo, instrucoes: v.instrucoes || null, inicio: v.inicio, prazo: v.prazo || null, urgente: !!v.urgente })
+          return true
+        } }],
+      }).then(r => { if (r) { avisar(a ? 'Pendência atualizada.' : 'Pendência criada. Ela já aparece no “Meu dia” da assistente.'); Pendencias.carregar(); App.atualizarContador() } })
     },
     resolver (p) {
       abrirModal({

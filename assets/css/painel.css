@@ -364,3 +364,5 @@ tr.inativa td { color: var(--text-faint); }
 .duvidas-lista { display: grid; }
 [data-recado] textarea { width: 100%; }
 @media (max-width: 600px) { .meudia .acoes .btn { flex: 1 1 100%; } }
+.sub-sec { font-size: var(--fs-md); color: var(--text-2); margin: 18px 0 8px; text-transform: uppercase; letter-spacing: var(--tracking-label); }
+.sub-sec:first-of-type { margin-top: 0; }

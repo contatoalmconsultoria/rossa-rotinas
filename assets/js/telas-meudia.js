@@ -4,7 +4,7 @@
   const { html, montar, avisar, abrirModal, valores, fmtDataCurta, fmtDataLonga, fmtHora, fmtDataHora, dataDoTs } = UI
 
   // ---------- regras da fila ----------
-  const FINAL = ['concluida', 'nao_realizada', 'nao_aplicavel']
+  const FINAL = ['concluida', 'nao_realizada', 'nao_aplicavel', 'pulada_av']
   // "pendente" (pulada com justificativa) libera a fila no dia em que foi pulada e volta no dia seguinte
   const resolvidaHoje = (e, hoje) => FINAL.includes(e.status) || (e.status === 'pendente' && dataDoTs(e.atualizado_em) === hoje)
   // Só entra o que vence hoje ou nos próximos 2 dias úteis; prazos de dias anteriores ficam fora do "Meu dia"
@@ -12,7 +12,15 @@
   const vencida = (e, hoje) => e.data_prevista < hoje
   const naFila = (e, limite) => e.frequencia === 'diaria' || e.data_prevista <= limite
   const ORDEM_CAT = { diaria: 0, semanal: 1, mensal: 2, periodica: 3 }
-  const rotuloFreq = { diaria: 'Rotina diária', semanal: 'Rotina semanal', mensal: 'Rotina mensal', periodica: 'Rotina periódica', sob_demanda: 'Sob demanda' }
+  const rotuloFreq = { diaria: 'Rotina diária', semanal: 'Rotina semanal', mensal: 'Rotina mensal', periodica: 'Rotina periódica', sob_demanda: 'Sob demanda', avulsa: 'Pendência' }
+  // Pendência criada pela gestão, no mesmo formato das rotinas para a fila
+  const deAvulsa = (a, hoje) => ({
+    _av: true, id: 'a' + a.id, avId: a.id, codigo: a.urgente ? 'URGENTE' : 'PENDÊNCIA', nome: a.titulo, descricao: a.instrucoes,
+    frequencia: 'avulsa', categoria: 'avulsa', urgente: a.urgente, prazoAv: a.prazo, data_prevista: a.prazo || hoje,
+    status: a.status === 'concluida' ? 'concluida' : a.pulada_em === hoje ? 'pulada_av' : 'a_fazer',
+    atrasada: a.atrasada, concluida_em: a.concluida_em, motivo: a.pulo_motivo, justificativa: a.pulo_justificativa,
+    pulos: a.pulos, inicio: a.inicio, voltou: a.pulada_em && a.pulada_em < hoje,
+  })
   const saudacao = () => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite' }
 
   function montarFila (d) {
@@ -20,7 +28,8 @@
     const ordenar = (a, b) => (ORDEM_CAT[a.categoria] ?? 9) - (ORDEM_CAT[b.categoria] ?? 9) ||
       (a.categoria === 'diaria' ? 0 : (a.data_prevista || '').localeCompare(b.data_prevista || '')) || idx.get(a.id) - idx.get(b.id)
     const doDia = d.execucoes.filter(e => !vencida(e, d.hoje))
-    const fila = doDia.filter(e => naFila(e, d.limite_fila)).sort(ordenar)
+    const av = (d.avulsas || []).map(a => deAvulsa(a, d.hoje))
+    const fila = [...av.filter(a => a.urgente), ...doDia.filter(e => naFila(e, d.limite_fila)).sort(ordenar), ...av.filter(a => !a.urgente)]
     const adiantar = doDia.filter(e => !naFila(e, d.limite_fila)).sort(ordenar)
     return { fila, adiantar }
   }
@@ -82,11 +91,11 @@
 
           ${atual ? html`
             <section class="atual">
-              <span class="etq ${atual.atrasada ? 'urg' : ''}">${rotuloFreq[atual.frequencia] || 'Rotina'} ${atual.codigo}${atual.atrasada ? ' · passou do horário' : ''}${atual.status === 'pendente' ? ' · voltou da véspera' : ''} · ${atualIdx + 1} de ${total}</span>
+              <span class="etq ${atual.atrasada || atual.urgente ? 'urg' : ''}">${atual._av ? (atual.urgente ? '⚡ Pendência urgente' : '📌 Pendência') : (rotuloFreq[atual.frequencia] || 'Rotina') + ' ' + atual.codigo}${atual.atrasada ? ' · passou do horário' : ''}${atual.status === 'pendente' || atual.voltou ? ' · voltou da véspera' : ''}${atual._av && atual.inicio < hoje ? ' · desde ' + fmtDataCurta(atual.inicio) : ''} · ${atualIdx + 1} de ${total}</span>
               <h2>${atual.nome}</h2>
               <div class="meta">${MeuDia.meta(atual)}</div>
               ${atual.descricao ? html`<div class="passos">${atual.descricao}</div>` : ''}
-              ${atual.status === 'pendente' && atual.justificativa ? html`<p class="muted small">Ontem: ${atual.motivo}${atual.justificativa ? ' — ' + atual.justificativa : ''}</p>` : ''}
+              ${(atual.status === 'pendente' || atual.voltou) && atual.justificativa ? html`<p class="muted small">Da última vez: ${atual.motivo}${atual.justificativa ? ' — ' + atual.justificativa : ''}</p>` : ''}
               <div class="acoes">
                 <button class="btn btn-ok" data-concluir="${atual.id}">✓ Já fiz esta atividade</button>
                 <button class="btn" data-duvida="${atual.id}">Tenho uma dúvida</button>
@@ -106,8 +115,8 @@
                 : ok ? `Pulada${e.motivo ? ': ' + e.motivo : ''}`
                   : i === atualIdx ? 'Fazendo agora' : 'Libera depois da anterior'
               return html`<div class="item ${!ok && i !== atualIdx ? 'bloq' : ''}">${ic}<div class="tx">
-                <b><span class="cod">${e.codigo}</span> ${e.nome}</b>
-                <span>${rotuloFreq[e.frequencia] || ''}${e.frequencia !== 'diaria' ? ' · prazo ' + fmtDataCurta(e.data_prevista) : ''}${!ok && e.atrasada ? html` · <b class="verm">passou do horário</b>` : ''} · ${sub}</span>
+                <b>${e._av ? '' : html`<span class="cod">${e.codigo}</span> `}${e.nome}</b>
+                <span>${e._av ? (e.urgente ? 'Pendência urgente' : 'Pendência') + (e.prazoAv ? ' · prazo ' + fmtDataCurta(e.prazoAv) : '') : (rotuloFreq[e.frequencia] || '') + (e.frequencia !== 'diaria' ? ' · prazo ' + fmtDataCurta(e.data_prevista) : '')}${!ok && e.atrasada ? html` · <b class="verm">passou do horário</b>` : ''} · ${sub}</span>
                 ${ok && e.status !== 'concluida' && e.justificativa ? html`<span class="just">${e.justificativa}</span>` : ''}</div></div>`
             })}</section>` : ''}
 
@@ -123,7 +132,7 @@
           </div>
         </div>`)
 
-      const achar = id => d.execucoes.find(e => e.id === Number(id))
+      const achar = id => [...d.execucoes, ...(d.avulsas || []).map(a => deAvulsa(a, hoje))].find(e => String(e.id) === String(id))
       raiz.querySelectorAll('[data-concluir]').forEach(b => b.addEventListener('click', () => MeuDia.concluir(achar(b.dataset.concluir))))
       raiz.querySelectorAll('[data-pular]').forEach(b => b.addEventListener('click', () => MeuDia.pular(achar(b.dataset.pular))))
       raiz.querySelectorAll('[data-duvida]').forEach(b => b.addEventListener('click', () => MeuDia.duvida(b.dataset.duvida ? achar(b.dataset.duvida) : null)))
@@ -136,6 +145,7 @@
     },
 
     meta (e) {
+      if (e._av) return e.prazoAv ? `Prazo ${fmtDataCurta(e.prazoAv)}${e.atrasada ? ' (vencido)' : ''}` : 'Sem prazo definido'
       const partes = []
       partes.push(e.frequencia === 'diaria' ? `Até ${fmtHora(e.prazo)}` : `Prazo ${fmtDataCurta(e.data_prevista)} às ${fmtHora(e.prazo)}`)
       if (e.area) partes.push(e.area)
@@ -147,11 +157,12 @@
     concluir (e) {
       abrirModal({
         titulo: e.status === 'a_fazer' || e.status === 'em_andamento' || e.status === 'pendente' ? 'Boa! ✓' : e.nome,
-        subtitulo: `Marcar “${e.codigo} — ${e.nome}” como feita.`,
+        subtitulo: `Marcar “${e._av ? e.nome : e.codigo + ' — ' + e.nome}” como feita.`,
         corpo: html`${e.descricao ? html`<div class="passos">${e.descricao}</div>` : ''}
           <label class="campo"><span>Observação <em>(opcional)</em></span><textarea name="obs" maxlength="4000" placeholder="Ex.: NF 1234 lançada; faltou o boleto do fornecedor X"></textarea></label>`,
         botoes: [{ rotulo: 'Concluir e seguir', acao: async form => {
           const v = valores(form)
+          if (e._av) { await API.chamar('concluir_avulsa', { id: e.avId, observacao: v.obs || null }); return true }
           await API.chamar('alterar_status', { id: e.id, status: 'concluida', versao: e.versao, resolucao: e.status === 'pendente' ? 'Concluída pela assistente' : null })
           if (v.obs) { try { await API.chamar('adicionar_observacao', { id: e.id, texto: v.obs }) } catch (err) { avisar('Concluída, mas a observação não foi salva: ' + err.message, 'erro') } }
           return true
@@ -161,16 +172,17 @@
 
     pular (e) {
       const motivos = MeuDia.d.motivos || ['Outro motivo']
-      const volta = e.frequencia !== 'diaria' && e.data_prevista > MeuDia.d.hoje
+      const volta = e._av || (e.frequencia !== 'diaria' && e.data_prevista > MeuDia.d.hoje)
       abrirModal({
         titulo: 'Pular esta atividade?',
-        subtitulo: `Para seguir sem fazer “${e.nome}”, conte o motivo. A ${MeuDia.d.gestao_nome || 'gestão'} vai ver a sua justificativa.${volta ? ' Como o prazo é ' + fmtDataCurta(e.data_prevista) + ', ela volta para a sua fila amanhã.' : ''}`,
+        subtitulo: `Para seguir sem fazer “${e.nome}”, conte o motivo. A ${MeuDia.d.gestao_nome || 'gestão'} vai ver a sua justificativa.${e._av ? ' Ela volta para a sua fila no próximo dia.' : volta ? ' Como o prazo é ' + fmtDataCurta(e.data_prevista) + ', ela volta para a sua fila amanhã.' : ''}`,
         corpo: html`<label class="campo"><span>Motivo</span><select name="motivo" required><option value="">Selecione…</option>${motivos.map(m => html`<option>${m}</option>`)}</select></label>
           <label class="campo"><span>Explique em poucas palavras</span><textarea name="justificativa" required minlength="5" maxlength="2000" placeholder="Ex.: o fornecedor ainda não mandou o XML da nota"></textarea></label>`,
         botoes: [{ rotulo: 'Pular com justificativa', tipo: 'perigo', acao: async form => {
           const v = valores(form)
           if (v.justificativa.length < 5) throw new Error('Escreva a justificativa.')
-          await API.chamar('alterar_status', { id: e.id, status: volta ? 'pendente' : 'nao_realizada', versao: e.versao, motivo: v.motivo, justificativa: v.justificativa })
+          if (e._av) await API.chamar('pular_avulsa', { id: e.avId, motivo: v.motivo, justificativa: v.justificativa })
+          else await API.chamar('alterar_status', { id: e.id, status: volta ? 'pendente' : 'nao_realizada', versao: e.versao, motivo: v.motivo, justificativa: v.justificativa })
           return true
         } }],
       }).then(r => { if (r) { avisar('Registrado. Seguimos para a próxima.'); MeuDia.carregar() } })
@@ -180,12 +192,14 @@
       const gestao = MeuDia.d.gestao_nome || 'gestão'
       abrirModal({
         titulo: 'Qual é a sua dúvida?',
-        subtitulo: `${e ? `Sobre “${e.codigo} — ${e.nome}”. ` : ''}A pergunta vai para a ${gestao}, e a resposta aparece aqui no painel.`,
+        subtitulo: `${e ? `Sobre “${e._av ? e.nome : e.codigo + ' — ' + e.nome}”. ` : ''}A pergunta vai para a ${gestao}, e a resposta aparece aqui no painel.`,
         corpo: html`<label class="campo"><span>Sua dúvida</span><textarea name="texto" required maxlength="2000" rows="4"></textarea></label>`,
         botoes: [{ rotulo: `Enviar para a ${gestao}`, acao: async form => {
           const v = valores(form)
           if (!v.texto) throw new Error('Escreva a sua dúvida.')
-          MeuDia.d.duvidas = await API.chamar('enviar_duvida', { texto: v.texto, execucao_id: e?.id ?? null })
+          MeuDia.d.duvidas = await API.chamar('enviar_duvida', e?._av
+            ? { texto: `[Pendência: ${e.nome}] ${v.texto}`, execucao_id: null }
+            : { texto: v.texto, execucao_id: e?.id ?? null })
           return true
         } }],
       }).then(r => { if (r) { avisar('Dúvida enviada.'); MeuDia.desenhar() } })
