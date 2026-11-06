@@ -3,6 +3,8 @@
   const { avisar } = UI
   const $ = s => document.querySelector(s)
   const ROTAS = {
+    meudia: r => Telas.MeuDia.abrir(r),
+    duvidas: r => Telas.Duvidas.abrir(r),
     hoje: r => Telas.Hoje.abrir(r),
     pendencias: r => Telas.Pendencias.abrir(r),
     historico: (r, p) => Telas.Historico.abrir(r, p),
@@ -50,9 +52,11 @@
     },
 
     navegar () {
-      const [rota, param] = (location.hash.replace(/^#\/?/, '') || 'hoje').split('/')
       const s = API.usuario
-      const destino = ROTAS[rota] && (rota !== 'admin' || s?.perfil === 'gestao') ? rota : 'hoje'
+      const inicial = s?.perfil === 'gestao' ? 'hoje' : 'meudia'
+      const [rota, param] = (location.hash.replace(/^#\/?/, '') || inicial).split('/')
+      const soGestao = ['admin', 'duvidas']
+      const destino = ROTAS[rota] && (!soGestao.includes(rota) || s?.perfil === 'gestao') ? rota : inicial
       rotaAtual = destino
       document.querySelectorAll('.topo-nav a').forEach(a => {
         a.classList.toggle('ativo', a.dataset.rota === destino)
@@ -73,6 +77,10 @@
       try {
         const l = await API.chamar('pendencias', { status: 'aberta' })
         const b = $('#nav-pend'); b.hidden = !l.length; b.textContent = l.length
+        if (API.usuario?.perfil === 'gestao') {
+          const d = (await API.chamar('duvidas')).filter(x => !x.resposta).length
+          const bd = $('#nav-duv'); bd.hidden = !d; bd.textContent = d
+        }
       } catch { /* silencioso: a falha de conexão já é sinalizada */ }
     },
   }
@@ -129,18 +137,19 @@
   }
   window.addEventListener('rossa:conexao', e => marcarConexao(e.detail))
   window.addEventListener('offline', () => { marcarConexao(false); avisar('Você está sem internet. Nada será salvo até a conexão voltar.', 'erro') })
-  window.addEventListener('online', () => { avisar('Conexão restabelecida. Atualizando…'); if (rotaAtual === 'hoje') Telas.Hoje.carregar() })
+  window.addEventListener('online', () => { avisar('Conexão restabelecida. Atualizando…'); if (rotaAtual === 'hoje') Telas.Hoje.carregar(); if (rotaAtual === 'meudia') Telas.MeuDia.carregar() })
 
   // ---------- atualização automática (ver mudanças feitas em outro computador) ----------
   setInterval(() => {
-    if (document.hidden || rotaAtual !== 'hoje' || !API.sessao()) return
+    if (document.hidden || !['hoje', 'meudia'].includes(rotaAtual) || !API.sessao()) return
     if ($('#modal').open || document.querySelector('.tarefa.ocupada')) return
     const ativo = document.activeElement
     if (ativo && (ativo.tagName === 'TEXTAREA' || (ativo.tagName === 'INPUT' && ativo.type !== 'checkbox'))) return
-    Telas.Hoje.carregar()
+    if (rotaAtual === 'meudia') Telas.MeuDia.carregar(); else Telas.Hoje.carregar()
   }, (window.ROSSA_CONFIG.ATUALIZAR_A_CADA_SEGUNDOS || 60) * 1000)
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && rotaAtual === 'hoje' && API.sessao() && !$('#modal').open) Telas.Hoje.carregar()
+    if (document.hidden || !API.sessao() || $('#modal').open) return
+    if (rotaAtual === 'meudia') Telas.MeuDia.carregar(); else if (rotaAtual === 'hoje') Telas.Hoje.carregar()
   })
 
   window.addEventListener('hashchange', () => { if (API.sessao()) App.navegar() })
