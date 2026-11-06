@@ -1,6 +1,8 @@
 # Painel de Rotinas Administrativas — Rossa Equipamentos
 
-Publicação estática do painel (somente interface), em **rossa.ind.br/rotinas** (HostGator, pasta `public_html/rotinas`).
+Publicação estática do painel (somente interface), em **https://rotinas.rossa.ind.br**
+(subdomínio na HostGator, cPanel br986, pasta `public_html/rotinas`).
+O site principal rossa.ind.br fica na KingHost; o DNS do domínio é gerenciado na HostGator.
 Não contém dados nem senhas.
 
 ## Acesso
