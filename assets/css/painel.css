@@ -366,3 +366,18 @@ tr.inativa td { color: var(--text-faint); }
 @media (max-width: 600px) { .meudia .acoes .btn { flex: 1 1 100%; } }
 .sub-sec { font-size: var(--fs-md); color: var(--text-2); margin: 18px 0 8px; text-transform: uppercase; letter-spacing: var(--tracking-label); }
 .sub-sec:first-of-type { margin-top: 0; }
+
+/* ---------- Visão da gestão e "Como faço isso?" ---------- */
+.faixa-visao { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between;
+  background: var(--color-primary-soft); border: 1px solid var(--color-primary); border-radius: var(--radius-md); padding: 10px 14px; font-size: var(--fs-sm); }
+.faixa-visao span { display: block; color: var(--text-muted, inherit); }
+.faixa-visao.gestao { background: var(--surface-muted); border-color: var(--border); }
+.faixa-visao .faixa-acoes { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.faixa-visao select { min-height: 30px; border-radius: var(--radius-md); border: 1px solid var(--border); padding: 0 8px; }
+.btn-ajuda { background: var(--surface); border-color: var(--color-primary); color: var(--color-primary); }
+.lista-md .item .btn-ajuda { flex: none; }
+.lista-md .item .tx { flex: 1; min-width: 0; }
+.modal .passos-grande { font-size: var(--fs-md, 1rem); line-height: 1.6; }
+.sd-passos { margin: 4px 0 8px; }
+.sd-passos summary { cursor: pointer; color: var(--color-primary); font-weight: var(--fw-semibold); margin-bottom: 6px; }
+.meudia button[disabled] { opacity: .55; cursor: not-allowed; }

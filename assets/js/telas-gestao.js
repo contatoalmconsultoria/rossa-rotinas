@@ -217,6 +217,7 @@
             <label class="campo"><span>Categoria</span><select name="categoria">${opc(c.categorias.map(x => [x.codigo, x.nome]), v.categoria)}</select></label>
             <label class="campo inteira"><span>Nome da tarefa</span><input type="text" name="nome" required maxlength="200" value="${v.nome || ''}"></label>
             <label class="campo inteira"><span>Descrição / orientação</span><textarea name="descricao" maxlength="2000">${v.descricao || ''}</textarea></label>
+            <label class="campo inteira"><span>Passo a passo <em>(aparece no botão “Como faço isso?” do Meu dia; um passo por linha)</em></span><textarea name="passo_a_passo" rows="10" maxlength="8000">${v.passo_a_passo || ''}</textarea></label>
             <label class="campo"><span>Frequência</span><select name="frequencia" data-freq>${opc(Object.entries(FREQ), v.frequencia)}</select></label>
             <label class="campo"><span>Horário previsto (prazo)</span><input type="time" name="horario_prazo" value="${v.horario_prazo}" required></label>
             <label class="campo" data-so="semanal"><span>Dia da semana</span><select name="dia_semana">${opc(DIAS.slice(1).map((d, i) => [i + 1, d]), v.dia_semana)}</select></label>

@@ -57,7 +57,7 @@
 
   // ---------- modal ----------
   // botoes: [{ rotulo, tipo: 'primario'|'perigo', acao: async (form) => true (fecha) | false }]
-  function abrirModal ({ titulo, subtitulo, corpo, botoes = [], largo = false, aoAbrir }) {
+  function abrirModal ({ titulo, subtitulo, corpo, botoes = [], largo = false, aoAbrir, rotuloFechar }) {
     const dlg = document.getElementById('modal')
     dlg.className = 'modal' + (largo ? ' largo' : '')
     montar(dlg, html`
@@ -66,7 +66,7 @@
           <button type="button" class="fechar" data-fechar aria-label="Fechar">×</button></div>
         <div class="modal-corpo">${corpo}<p class="erro-msg" data-erro hidden></p></div>
         <div class="modal-rodape">
-          <button type="button" class="btn" data-fechar>${botoes.length ? 'Cancelar' : 'Fechar'}</button>
+          <button type="button" class="btn" data-fechar>${rotuloFechar || (botoes.length ? 'Cancelar' : 'Fechar')}</button>
           ${botoes.map((b, i) => html`<button type="${i === botoes.length - 1 ? 'submit' : 'button'}" class="btn ${b.tipo === 'perigo' ? 'btn-perigo' : 'btn-primario'}" data-botao="${i}">${b.rotulo}</button>`)}
         </div>
       </form>`)

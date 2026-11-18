@@ -19,7 +19,7 @@
     frequencia: 'avulsa', categoria: 'avulsa', urgente: a.urgente, prazoAv: a.prazo, data_prevista: a.prazo || hoje,
     status: a.status === 'concluida' ? 'concluida' : a.pulada_em === hoje ? 'pulada_av' : 'a_fazer',
     atrasada: a.atrasada, concluida_em: a.concluida_em, motivo: a.pulo_motivo, justificativa: a.pulo_justificativa,
-    pulos: a.pulos, inicio: a.inicio, voltou: a.pulada_em && a.pulada_em < hoje,
+    pulos: a.pulos, inicio: a.inicio, voltou: a.pulada_em && a.pulada_em < hoje, passo_a_passo: a.instrucoes,
   })
   const saudacao = () => { const h = new Date().getHours(); return h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite' }
 
@@ -43,24 +43,39 @@
 
     async carregar () {
       const raiz = MeuDia.raiz
-      try { MeuDia.d = await API.chamar('fila') } catch (err) {
+      try {
+        MeuDia.d = MeuDia.emVisao() ? await API.chamar('fila_como', MeuDia.comoId ? { usuario_id: MeuDia.comoId } : {}) : await API.chamar('fila')
+      } catch (err) {
+        if (MeuDia.emVisao() && err.codigo === 'P0404') return MeuDia.trocarModo('gestao') // nenhuma assistente ativa para visualizar
         if (raiz.isConnected) montar(raiz, html`<div class="vazio">${err.message}</div>`)
         return
       }
       if (raiz.isConnected) MeuDia.desenhar()
     },
 
+    // Gestão: por padrão vê o "Meu dia" exatamente como a assistente vê (sem poder agir em nome dela)
+    emVisao () {
+      if (API.usuario?.perfil !== 'gestao') return false
+      try { return sessionStorage.getItem('rossa.meudia.modo') !== 'gestao' } catch { return MeuDia._modo !== 'gestao' }
+    },
+    trocarModo (modo) {
+      try { sessionStorage.setItem('rossa.meudia.modo', modo) } catch { MeuDia._modo = modo }
+      MeuDia.abrir(MeuDia.raiz)
+    },
+
     desenhar () {
       const d = MeuDia.d, raiz = MeuDia.raiz, hoje = d.hoje
+      const visao = !!d.como
+      const eGestao = API.usuario?.perfil === 'gestao'
       const { fila, adiantar } = montarFila(d)
       const feitas = fila.filter(e => resolvidaHoje(e, hoje)).length
       const total = fila.length
       const atualIdx = fila.findIndex(e => !resolvidaHoje(e, hoje))
       const atual = atualIdx >= 0 ? fila[atualIdx] : null
-      const nome = API.usuario?.nome || ''
+      const nome = visao ? d.como.nome : (API.usuario?.nome || '')
       const gestao = d.gestao_nome || 'gestão'
       const atrasadas = fila.filter(e => !resolvidaHoje(e, hoje) && e.atrasada).length
-      const respostas = (d.duvidas || []).filter(x => x.resposta && !x.lida && API.usuario?.perfil !== 'gestao')
+      const respostas = (d.duvidas || []).filter(x => x.resposta && !x.lida && (visao || !eGestao))
 
       let fala
       if (!d.dia_util && total === 0) fala = html`Hoje é ${fmtDataLonga(hoje).toLowerCase()}${d.feriado ? ` (${d.feriado})` : ''} e não é dia útil, então não há rotinas. Bom descanso!`
@@ -71,6 +86,16 @@
 
       montar(raiz, html`
         <div class="meudia">
+          ${visao ? html`<div class="faixa-visao" role="status">
+            <div><b>👀 Você está vendo o “Meu dia” exatamente como a ${d.como.nome} vê agora.</b>
+              <span>Os botões de ação ficam travados para nada ser registrado em nome dela. “Como faço isso?” funciona normalmente.${d.como.ultimo_acesso_em ? ` Último acesso dela: ${fmtDataHora(d.como.ultimo_acesso_em)}.` : ''}</span></div>
+            <div class="faixa-acoes">
+              ${(d.operadores || []).length > 1 ? html`<select data-como aria-label="Ver como">${d.operadores.map(o => html`<option value="${o.id}" ${o.id === d.como.id ? 'selected' : ''}>${o.nome}</option>`)}</select>` : ''}
+              <button class="btn btn-pequeno" data-modo="gestao">Usar o Meu dia como gestão</button></div>
+          </div>` : eGestao ? html`<div class="faixa-visao gestao" role="status">
+            <div><b>Você está usando o “Meu dia” como gestão.</b> <span>O que você marcar aqui fica registrado em seu nome.</span></div>
+            <div class="faixa-acoes"><button class="btn btn-pequeno btn-primario" data-modo="visao">Ver como a assistente vê</button></div>
+          </div>` : ''}
           <section class="conversa">
             <div class="fala"><div class="avatar">R</div><div class="balao">
               <div class="rotulo-dia">${fmtDataLonga(hoje)}</div>
@@ -98,6 +123,7 @@
               ${(atual.status === 'pendente' || atual.voltou) && atual.justificativa ? html`<p class="muted small">Da última vez: ${atual.motivo}${atual.justificativa ? ' — ' + atual.justificativa : ''}</p>` : ''}
               <div class="acoes">
                 <button class="btn btn-ok" data-concluir="${atual.id}">✓ Já fiz esta atividade</button>
+                <button class="btn btn-ajuda" data-como-faco="${atual.id}">📖 Como faço isso?</button>
                 <button class="btn" data-duvida="${atual.id}">Tenho uma dúvida</button>
                 <button class="btn btn-alerta" data-pular="${atual.id}">Pular (com justificativa)</button>
               </div>
@@ -117,18 +143,20 @@
               return html`<div class="item ${!ok && i !== atualIdx ? 'bloq' : ''}">${ic}<div class="tx">
                 <b>${e._av ? '' : html`<span class="cod">${e.codigo}</span> `}${e.nome}</b>
                 <span>${e._av ? (e.urgente ? 'Pendência urgente' : 'Pendência') + (e.prazoAv ? ' · prazo ' + fmtDataCurta(e.prazoAv) : '') : (rotuloFreq[e.frequencia] || '') + (e.frequencia !== 'diaria' ? ' · prazo ' + fmtDataCurta(e.data_prevista) : '')}${!ok && e.atrasada ? html` · <b class="verm">passou do horário</b>` : ''} · ${sub}</span>
-                ${ok && e.status !== 'concluida' && e.justificativa ? html`<span class="just">${e.justificativa}</span>` : ''}</div></div>`
+                ${ok && e.status !== 'concluida' && e.justificativa ? html`<span class="just">${e.justificativa}</span>` : ''}</div>
+                <button class="btn btn-pequeno btn-ajuda" data-como-faco="${e.id}" title="Ver o passo a passo">Como faço?</button></div>`
             })}</section>` : ''}
 
           ${adiantar.length ? html`<section class="lista-md"><h3>Do mês, para adiantar <span class="muted small">(não travam a fila; entram nela 2 dias úteis antes do prazo)</span></h3>
             ${adiantar.map(e => html`<div class="item">${e.status === 'concluida' ? html`<div class="ic feita">✓</div>` : html`<div class="ic cal">📅</div>`}
               <div class="tx"><b><span class="cod">${e.codigo}</span> ${e.nome}</b><span>Prazo ${fmtDataCurta(e.data_prevista)} às ${fmtHora(e.prazo)}${e.status === 'concluida' ? ' · feita às ' + fmtHora(e.concluida_em) : ''}</span></div>
+              <button class="btn btn-pequeno btn-ajuda" data-como-faco="${e.id}" title="Ver o passo a passo">Como faço?</button>
               ${e.status === 'concluida' ? '' : html`<button class="btn btn-pequeno" data-concluir="${e.id}">Ver / concluir</button>`}</div>`)}</section>` : ''}
 
           <div class="linha-acoes">
             ${(d.sob_demanda || []).length ? html`<button class="btn" data-sob-demanda>➕ Fiz uma tarefa sob demanda</button>` : ''}
             <button class="btn" data-duvida="">✉️ Mandar uma dúvida para a ${gestao}</button>
-            ${(d.duvidas || []).length && API.usuario?.perfil !== 'gestao' ? html`<button class="btn" data-minhas>Minhas dúvidas (${d.duvidas.length})</button>` : ''}
+            ${(d.duvidas || []).length && (visao || !eGestao) ? html`<button class="btn" data-minhas>Minhas dúvidas (${d.duvidas.length})</button>` : ''}
           </div>
         </div>`)
 
@@ -142,6 +170,54 @@
       }))
       raiz.querySelector('[data-sob-demanda]')?.addEventListener('click', () => MeuDia.sobDemanda())
       raiz.querySelector('[data-minhas]')?.addEventListener('click', () => MeuDia.minhas())
+      raiz.querySelectorAll('[data-como-faco]').forEach(b => b.addEventListener('click', () => MeuDia.comoFaco(achar(b.dataset.comoFaco))))
+      raiz.querySelectorAll('[data-modo]').forEach(b => b.addEventListener('click', () => MeuDia.trocarModo(b.dataset.modo)))
+      raiz.querySelector('[data-como]')?.addEventListener('change', ev => { MeuDia.comoId = Number(ev.target.value); MeuDia.carregar() })
+      if (visao) {
+        // Somente leitura: nada é registrado em nome da assistente
+        raiz.querySelectorAll('[data-concluir], [data-pular], [data-duvida], [data-lida], [data-sob-demanda]').forEach(b => {
+          b.disabled = true; b.title = 'Somente visualização: você está vendo a tela da ' + d.como.nome
+        })
+      }
+    },
+
+    comoFaco (e) {
+      if (!e) return
+      const d = MeuDia.d, visao = !!d.como, gestao = API.usuario?.perfil === 'gestao'
+      const passos = e.passo_a_passo || ''
+      const pop = e.pop?.url ? html`<p><a href="${e.pop.url}" target="_blank" rel="noopener noreferrer">Abrir o procedimento ${e.pop.codigo}${e.pop.nome ? ' — ' + e.pop.nome : ''}</a></p>`
+        : e.pop?.codigo ? html`<p class="muted small">Procedimento de referência: POP ${e.pop.codigo}${e.pop.nome ? ' — ' + e.pop.nome : ''}</p>` : ''
+      const botoes = []
+      if (!visao) botoes.push({ rotulo: 'Ainda tenho dúvida', acao: async () => 'duvida' })
+      if (gestao && !e._av && e.tarefa_id) botoes.push({ rotulo: 'Editar este passo a passo', acao: async () => 'editar' })
+      abrirModal({
+        titulo: 'Como faço isso?', subtitulo: e._av ? e.nome : `${e.codigo} — ${e.nome}`, largo: true,
+        corpo: html`${passos ? html`<div class="passos passos-grande">${passos}</div>`
+            : html`${e.descricao ? html`<div class="passos">${e.descricao}</div>` : ''}<p class="muted small">O passo a passo detalhado desta tarefa ainda não foi escrito. Se precisar, use “Tenho uma dúvida”.</p>`}
+          ${pop}`,
+        botoes, rotuloFechar: 'Fechar',
+      }).then(r => {
+        if (r === 'duvida') MeuDia.duvida(e)
+        if (r === 'editar') MeuDia.editarPassos(e)
+      })
+    },
+
+    async editarPassos (e) {
+      let t
+      try { t = (await API.chamar('cadastros')).tarefas.find(x => x.id === e.tarefa_id) } catch (err) { return avisar(err.message, 'erro') }
+      if (!t) return avisar('Tarefa não encontrada no cadastro.', 'erro')
+      abrirModal({
+        titulo: 'Editar passo a passo', subtitulo: `${t.codigo} — ${t.nome}. Vale para hoje e para as próximas vezes que a tarefa aparecer.`, largo: true,
+        corpo: html`<label class="campo"><span>Passo a passo <em>(um passo por linha: 1., 2., 3.…)</em></span>
+          <textarea name="passo_a_passo" rows="14" maxlength="8000">${t.passo_a_passo || ''}</textarea></label>`,
+        botoes: [{ rotulo: 'Salvar passo a passo', acao: async form => {
+          const campos = ['codigo', 'nome', 'descricao', 'categoria', 'frequencia', 'dia_semana', 'tipo_dia_prazo', 'dia_prazo', 'intervalo_meses',
+            'mes_base', 'antecedencia_dias', 'horario_prazo', 'area_id', 'responsavel_id', 'prioridade', 'pop_id', 'ordem', 'ativo']
+          const dados = Object.fromEntries(campos.map(k => [k, t[k]]))
+          await API.chamar('salvar_tarefa', { ...dados, id: t.id, passo_a_passo: valores(form).passo_a_passo || '' })
+          return true
+        } }],
+      }).then(r => { if (r) { avisar('Passo a passo salvo.'); MeuDia.carregar() } })
     },
 
     meta (e) {
@@ -210,7 +286,16 @@
       abrirModal({
         titulo: 'Tarefa sob demanda', subtitulo: 'Registre quando fizer uma tarefa que foi pedida para você.',
         corpo: html`<label class="campo"><span>Qual tarefa?</span><select name="tarefa" required><option value="">Selecione…</option>${lista.map(t => html`<option value="${t.id}">${t.codigo} — ${t.nome}</option>`)}</select></label>
+          <div data-sd-passos></div>
           <label class="campo"><span>Observação <em>(opcional)</em></span><textarea name="obs" maxlength="4000" placeholder="Ex.: NF 1234 para o cliente X"></textarea></label>`,
+        aoAbrir: dlg => {
+          const sel = dlg.querySelector('select[name=tarefa]'), alvo = dlg.querySelector('[data-sd-passos]')
+          sel.addEventListener('change', () => {
+            const t = lista.find(x => String(x.id) === sel.value)
+            const txt = t?.passo_a_passo || t?.descricao || ''
+            montar(alvo, txt ? html`<details class="sd-passos"><summary>📖 Como faço isso?</summary><div class="passos">${txt}</div></details>` : html``)
+          })
+        },
         botoes: [{ rotulo: 'Registrar', acao: async form => {
           const v = valores(form)
           const nova = await API.chamar('registrar_demanda', { tarefa_id: Number(v.tarefa), observacao: v.obs || null })
