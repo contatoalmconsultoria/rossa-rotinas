@@ -12,6 +12,13 @@ Não contém dados nem senhas.
 - Todo dado passa pela função `public.rossa_api(acao, parametros)`, executável só por usuários logados.
   As tabelas do schema `rossa_rotinas` continuam fechadas (sem acesso direto).
 
-## Publicação
+## Publicação automática (desde 18/11/2026)
+Um agendamento (cron) no cPanel, a cada 5 minutos, busca o ramo `login-email` deste repositório
+(cópia em `~/repositories/rossa-rotinas`) e, se houver versão nova, copia `index.html`, `robots.txt`,
+`.htaccess` e `assets/` para `public_html/rotinas`. Basta enviar (push) para o ramo `login-email`.
+A versão no ar fica registrada em `https://rotinas.rossa.ind.br/.deploy` e o histórico em `~/rotinas-deploy.log`.
+Nenhuma senha é usada: o repositório é público e o servidor só lê.
+
+## Publicação manual (se o agendamento parar)
 Enviar para `public_html/rotinas`: `index.html`, `robots.txt`, `.htaccess` e a pasta `assets/`.
 O `.htaccess` força HTTPS e aplica os cabeçalhos de segurança (CSP, bloqueio de iframe, noindex).
