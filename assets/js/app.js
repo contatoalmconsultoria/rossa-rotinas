@@ -10,6 +10,7 @@
     historico: (r, p) => Telas.Historico.abrir(r, p),
     indicadores: r => Telas.Indicadores.abrir(r),
     admin: r => Telas.Admin.abrir(r),
+    projetos: r => Telas.Projetos.abrir(r),
   }
   let rotaAtual = null
 
@@ -48,6 +49,7 @@
       $('#tela-app').hidden = false
       $('#perfil').textContent = `${u.nome} · ${u.perfil === 'gestao' ? 'Gestão' : 'Operação'}`
       document.querySelectorAll('[data-gestao]').forEach(el => { el.hidden = u.perfil !== 'gestao' })
+      document.querySelectorAll('[data-projetos]').forEach(el => { el.hidden = !u.ve_projetos })
       App.navegar()
     },
 
@@ -56,7 +58,8 @@
       const inicial = s?.perfil === 'gestao' ? 'hoje' : 'meudia'
       const [rota, param] = (location.hash.replace(/^#\/?/, '') || inicial).split('/')
       const soGestao = ['admin', 'duvidas']
-      const destino = ROTAS[rota] && (!soGestao.includes(rota) || s?.perfil === 'gestao') ? rota : inicial
+      const permitido = r => (!soGestao.includes(r) || s?.perfil === 'gestao') && (r !== 'projetos' || s?.ve_projetos)
+      const destino = ROTAS[rota] && permitido(rota) ? rota : inicial
       rotaAtual = destino
       document.querySelectorAll('.topo-nav a').forEach(a => {
         a.classList.toggle('ativo', a.dataset.rota === destino)
@@ -142,10 +145,11 @@
 
   // ---------- atualização automática (ver mudanças feitas em outro computador) ----------
   setInterval(() => {
-    if (document.hidden || !['hoje', 'meudia'].includes(rotaAtual) || !API.sessao()) return
+    if (document.hidden || !['hoje', 'meudia', 'projetos'].includes(rotaAtual) || !API.sessao()) return
     if ($('#modal').open || document.querySelector('.tarefa.ocupada')) return
     const ativo = document.activeElement
     if (ativo && (ativo.tagName === 'TEXTAREA' || (ativo.tagName === 'INPUT' && ativo.type !== 'checkbox'))) return
+    if (rotaAtual === 'projetos') { if (!Telas.Projetos.arrastando) Telas.Projetos.carregar(); return }
     if (rotaAtual === 'meudia') Telas.MeuDia.carregar(); else Telas.Hoje.carregar()
   }, (window.ROSSA_CONFIG.ATUALIZAR_A_CADA_SEGUNDOS || 60) * 1000)
   document.addEventListener('visibilitychange', () => {

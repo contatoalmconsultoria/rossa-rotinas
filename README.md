@@ -12,6 +12,11 @@ Não contém dados nem senhas.
 - Todo dado passa pela função `public.rossa_api(acao, parametros)`, executável só por usuários logados.
   As tabelas do schema `rossa_rotinas` continuam fechadas (sem acesso direto).
 
+## Aba Projetos (quadro semanal)
+- Visível só para quem tem `ve_projetos = true` na tabela `rossa_rotinas.usuario` (hoje: Liliane e Renan).
+  O servidor confere isso em toda ação (`projetos`, `salvar_projeto`, `mover_projeto`, `excluir_projeto`).
+- Dados na tabela `rossa_rotinas.projeto` (migração 014). Excluir só esconde o projeto; tudo fica na auditoria.
+
 ## Publicação automática (desde 18/11/2026)
 Um agendamento (cron) no cPanel, a cada 5 minutos, busca o ramo `login-email` deste repositório
 (cópia em `~/repositories/rossa-rotinas`) e, se houver versão nova, copia `index.html`, `robots.txt`,
